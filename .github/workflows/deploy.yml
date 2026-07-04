@@ -1,0 +1,52 @@
+name: Deploy to Kubernetes
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Load secrets from 1Password
+        uses: 1password/load-secrets-action@v2
+        with:
+          export-env: true
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+          GHCR_USERNAME: op://HomeLab/GitHub-GHCR-Pull/username
+          GHCR_TOKEN: op://HomeLab/GitHub-GHCR-Pull/password
+          KUBECONFIG_DATA: op://HomeLab/np-home-homelab/kubeconfig
+
+      - name: Configure kubectl
+        run: |
+          mkdir -p ~/.kube
+          # Support both plain YAML and base64-encoded kubeconfig
+          if echo "$KUBECONFIG_DATA" | base64 -d > /dev/null 2>&1; then
+            echo "$KUBECONFIG_DATA" | base64 -d > ~/.kube/config
+          else
+            echo "$KUBECONFIG_DATA" > ~/.kube/config
+          fi
+          chmod 600 ~/.kube/config
+
+      - name: Create GHCR pull secret (idempotent)
+        run: |
+          kubectl create secret docker-registry ghcr-pull-secret \
+            --docker-server=ghcr.io \
+            --docker-username="${GHCR_USERNAME}" \
+            --docker-password="${GHCR_TOKEN}" \
+            --docker-email=dorkmeisterx69@gmail.com \
+            --namespace=openbrain \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Apply Kubernetes manifests
+        run: |
+          kubectl apply -f k8s/openbrain.yml
+
+      - name: Verify rollout
+        run: |
+          kubectl rollout status statefulset/openbrain -n openbrain --timeout=120s
+          kubectl get pods -n openbrain -l app=openbrain

@@ -76,6 +76,8 @@ spec:
       labels:
         app: openbrain
     spec:
+      imagePullSecrets:
+        - name: ghcr-pull-secret
       containers:
         - name: db
           image: ankane/pgvector:v0.5.1
@@ -110,10 +112,7 @@ spec:
               memory: 1Gi
 
         - name: mcp-server
-          # Image is published to ghcr.io by the build-and-publish workflow.
-          # Replace <owner> with your GitHub username/org, or use the full
-          # ghcr.io path printed at the end of a successful workflow run.
-          image: ghcr.io/<owner>/openbrain-mcp-server:latest
+          image: ghcr.io/lordmuffin/openbrain-mcp-server:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 8000
