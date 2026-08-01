@@ -53,13 +53,17 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push
+      - name: Build
         uses: docker/build-push-action@v6
         with:
           context: ${{ inputs.context }}
           file: ${{ inputs.dockerfile }}
-          push: true
+          push: false
+          load: true
           tags: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ inputs.image_name }}:${{ inputs.upstream_ref }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           provenance: false
+
+      - name: Push
+        run: docker push ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ inputs.image_name }}:${{ inputs.upstream_ref }}
