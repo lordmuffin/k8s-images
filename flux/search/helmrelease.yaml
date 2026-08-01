@@ -1,0 +1,68 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: searxng
+  namespace: flux-system
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: searxng
+      version: "0.1.x"
+      sourceRef:
+        kind: HelmRepository
+        name: searxng
+      interval: 1h
+  targetNamespace: search
+  install:
+    createNamespace: true
+  dependsOn:
+    - name: redis-operator
+      namespace: flux-system
+  values:
+    secret:
+      create: false
+      existingSecret: searxng-secret-runtime
+      existingSecretKey: SEARXNG_SECRET
+    valkey:
+      enabled: false
+      # Service name created by the redis-operator Redis CR (flux/search/redis.yaml) is expected
+      # to match the CR name, "searxng-valkey" - confirm with `kubectl get svc -n search` after
+      # the Redis CR reconciles and adjust here if the operator names it differently.
+      externalUrl: "valkey://searxng-valkey.search.svc.cluster.local:6379/0"
+    config:
+      useDefaultSettings: true
+      settings:
+        general:
+          instance_name: SearXNG
+        server:
+          limiter: true
+          public_instance: false
+          image_proxy: true
+          method: GET
+        search:
+          formats:
+            - html
+            - json
+        engines:
+          # Lean, deliberately non-Google-only engine set. Everything else keeps whatever
+          # use_default_settings ships as enabled/disabled - tune further once live.
+          - name: google
+            disabled: false
+          - name: bing
+            disabled: false
+          - name: duckduckgo
+            disabled: false
+          - name: brave
+            disabled: false
+          - name: mojeek
+            disabled: false
+          - name: startpage
+            disabled: false
+          - name: wikipedia
+            disabled: false
+          - name: wikidata
+            disabled: false
+          - name: github
+            disabled: false

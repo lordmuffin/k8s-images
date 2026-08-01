@@ -1,0 +1,25 @@
+---
+apiVersion: toolhive.stacklok.dev/v1beta1
+kind: MCPServer
+metadata:
+  name: searxng
+  namespace: toolhive-system
+spec:
+  image: docker.io/isokoliuk/mcp-searxng:latest
+  transport: streamable-http   # server also supports stdio
+  mcpPort: 8080
+  proxyPort: 8080
+  podTemplateSpec:
+    spec:
+      containers:
+        - name: mcp   # must be exactly "mcp"
+          env:
+            - name: SEARXNG_URL
+              value: "http://searxng.search.svc.cluster.local:8080"
+            - name: MCP_HTTP_PORT
+              value: "8080"
+            - name: MCP_HTTP_HOST
+              value: "0.0.0.0"
+  resources:
+    limits:   { cpu: '100m', memory: '128Mi' }   # proxy container
+    requests: { cpu: '50m',  memory: '64Mi'  }
