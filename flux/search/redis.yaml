@@ -1,0 +1,31 @@
+---
+# Shared Redis-operator-managed instance backing SearXNG's Valkey-based limiter.
+# Runs the valkey/valkey image on top of the redis-operator's Redis CRD (RESP-protocol
+# compatible) rather than the operator's default quay.io/opstree/redis image, so this
+# instance stays interchangeable with the image the SearXNG chart itself would otherwise
+# bundle. Verify pod health after first apply — the operator doesn't explicitly document
+# running non-Redis images.
+apiVersion: redis.redis.opstreelabs.in/v1beta2
+kind: Redis
+metadata:
+  name: searxng-valkey
+  namespace: search
+spec:
+  kubernetesConfig:
+    image: docker.io/valkey/valkey:9.1.1-trixie
+    imagePullPolicy: IfNotPresent
+    resources:
+      requests:
+        cpu: 25m
+        memory: 64Mi
+      limits:
+        memory: 256Mi
+  storage:
+    volumeClaimTemplate:
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi
+  redisExporter:
+    enabled: false
