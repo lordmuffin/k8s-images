@@ -1,0 +1,64 @@
+name: Build External Image
+
+on:
+  workflow_call:
+    inputs:
+      upstream_repo:
+        description: "Upstream repo to build (owner/name)"
+        required: true
+        type: string
+      upstream_ref:
+        description: "Upstream tag or SHA to build and publish under"
+        required: true
+        type: string
+      image_name:
+        description: "Image name to publish under ghcr.io/<owner>/<image_name>"
+        required: true
+        type: string
+      dockerfile:
+        description: "Path to the Dockerfile within the upstream repo"
+        required: false
+        type: string
+        default: Dockerfile
+      context:
+        description: "Build context within the upstream repo"
+        required: false
+        type: string
+        default: .
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout upstream repo
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.upstream_repo }}
+          ref: ${{ inputs.upstream_ref }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ inputs.context }}
+          file: ${{ inputs.dockerfile }}
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ inputs.image_name }}:${{ inputs.upstream_ref }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
