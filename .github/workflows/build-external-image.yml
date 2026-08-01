@@ -62,3 +62,4 @@ jobs:
           tags: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ inputs.image_name }}:${{ inputs.upstream_ref }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          provenance: false
