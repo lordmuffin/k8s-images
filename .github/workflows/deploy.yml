@@ -7,7 +7,7 @@ on:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, k8s-images-runners]
     steps:
       - uses: actions/checkout@v4
 
