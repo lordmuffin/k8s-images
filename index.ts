@@ -35,7 +35,12 @@ const CHAT_API_BASE = Deno.env.get("CHAT_API_BASE") || EMBEDDING_API_BASE;
 const CHAT_API_KEY = Deno.env.get("CHAT_API_KEY") || EMBEDDING_API_KEY;
 const CHAT_MODEL = Deno.env.get("CHAT_MODEL") || "openai/gpt-4o-mini";
 
-const MCP_ACCESS_KEY = Deno.env.get("MCP_ACCESS_KEY")!;
+// This deployment sits behind a ToolHive MCPServer with an embedded Pocket ID
+// OAuth server in front of it, which is the only auth this deployment relies
+// on. MCP_ACCESS_KEY is kept as an optional secondary gate rather than
+// deleted outright, in case a future non-ToolHive deployment of this image
+// wants it back.
+const MCP_ACCESS_KEY = Deno.env.get("MCP_ACCESS_KEY") || "";
 
 // --- PostgreSQL Connection Pool ---
 
@@ -571,9 +576,11 @@ const app = new Hono();
 app.options("*", (c) => c.text("ok", 200, corsHeaders));
 
 app.all("*", async (c) => {
-  const provided = c.req.header("x-brain-key") || new URL(c.req.url).searchParams.get("key");
-  if (!provided || provided !== MCP_ACCESS_KEY) {
-    return c.json({ error: "Invalid or missing access key" }, 401, corsHeaders);
+  if (MCP_ACCESS_KEY) {
+    const provided = c.req.header("x-brain-key") || new URL(c.req.url).searchParams.get("key");
+    if (!provided || provided !== MCP_ACCESS_KEY) {
+      return c.json({ error: "Invalid or missing access key" }, 401, corsHeaders);
+    }
   }
 
   // Claude Desktop connectors don't send Accept: text/event-stream — patch it in.
