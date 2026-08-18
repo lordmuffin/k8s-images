@@ -1,14 +1,22 @@
 name: Build and Publish
 
+# Scoped to OpenBrain's actual inputs so unrelated changes elsewhere in this
+# multi-image repo (arc-runner/**, flux/**, etc.) don't republish it.
 on:
   push:
     branches:
       - main
     tags:
       - "v*"
+    paths: &openbrain-paths
+      - "Dockerfile"
+      - "deno.json"
+      - "index.ts"
+      - ".github/workflows/build-and-publish.yml"
   pull_request:
     branches:
       - main
+    paths: *openbrain-paths
   workflow_dispatch:
 
 env:
@@ -46,8 +54,11 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            # tag latest on pushes to main
-            type=raw,value=latest,enable={{is_default_branch}}
+            # No floating `latest` tag: the only consumer (np-home-homelab)
+            # pins by digest and never reads it, so a moving tag on this
+            # multi-arch image would just be an untracked footgun. If a
+            # consumer needs `latest`, add it back deliberately and note
+            # who relies on it here.
             # tag with short git SHA on every push
             type=sha,prefix=sha-
             # semver tags from v* git tags

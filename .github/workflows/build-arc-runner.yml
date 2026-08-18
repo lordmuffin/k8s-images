@@ -1,8 +1,18 @@
 name: Build ARC runner image
 
-# Manual only — the consuming repo (np-home-homelab) pins an explicit tag, so
-# rebuilding on every push would silently change what CI runs on there.
+# Two ways in:
+#   - push to arc-runner/**: auto-builds and tags with the commit SHA only.
+#     Never touches a stable tag, so it can't silently change what
+#     np-home-homelab pins — that repo always references an explicit tag.
+#   - workflow_dispatch: publishes (or re-tags) the stable, human-chosen tag
+#     that np-home-homelab actually pins to. Use this to promote a build.
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - "arc-runner/**"
+      - ".github/workflows/build-arc-runner.yml"
   workflow_dispatch:
     inputs:
       tag:
@@ -35,6 +45,20 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Determine tags
+        id: tags
+        run: |
+          TAGS="ghcr.io/lordmuffin/arc-runner:${{ github.sha }}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAGS="ghcr.io/lordmuffin/arc-runner:${{ inputs.tag }}
+          $TAGS"
+          fi
+          {
+            echo "tags<<EOF"
+            echo "$TAGS"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
@@ -43,11 +67,10 @@ jobs:
           platforms: linux/amd64
           push: true
           provenance: false
-          tags: |
-            ghcr.io/lordmuffin/arc-runner:${{ inputs.tag }}
-            ghcr.io/lordmuffin/arc-runner:${{ github.sha }}
+          tags: ${{ steps.tags.outputs.tags }}
 
       - name: Emit pinned image reference
+        if: github.event_name == 'workflow_dispatch'
         run: |
           {
             echo "### ARC runner image built"
